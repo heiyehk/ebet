@@ -55,13 +55,19 @@ const computedListHeight = computed(() => {
   return lineHeight + searchResultList.value.length * lineHeight;
 });
 
-// 输入框输入事件防抖
-const onSearchInput = debounce(async () => {
-  if (!searchValue.value) {
-    searchResultList.value = [];
+const searchFanyi = async (text: string) => {
+  if (!text) {
+    searchResultList.value = [
+      {
+        id: 1,
+        text: '',
+        desc: '自动检测翻译'
+      }
+    ];
+
     return;
   }
-  const result = await fetch<SearchResultData>(fanyiApi(searchValue.value), {
+  const result = await fetch<SearchResultData>(fanyiApi(text), {
     method: 'GET',
     responseType: 1
   }).catch(() => {
@@ -79,6 +85,69 @@ const onSearchInput = debounce(async () => {
       desc: resultData.desc
     }
   ];
+}
+
+const mathExpressionRegex = /[-+*/%]*\d+(?:\.?\d*)*[-+*/%]*(?:\d+(?:\.?\d*)*)*/g;
+const computedFormula = (text: string) => {
+  if (mathExpressionRegex.test(text.replaceAll(' ', ''))) {
+    searchResultList.value = [
+      {
+        id: 1,
+        text: '',
+        desc: '数学计算'
+      }
+    ]
+  };
+
+  try {
+    searchResultList.value = [
+      {
+        id: 1,
+        text: String(eval(text)),
+        desc: '数学计算'
+      }
+    ];
+  } catch (error: any) {
+    // searchResultList.value = [
+    //   {
+    //     id: 1,
+    //     text: 'Error',
+    //     desc: error.message || error
+    //   }
+    // ]
+  }
+}
+
+// 输入框输入事件防抖
+const onSearchInput = debounce(async () => {
+  const searchInputValue = searchValue.value;
+  if (!searchInputValue) {
+    searchResultList.value = [];
+    return;
+  }
+
+  if (searchInputValue) {
+    if (searchInputValue.startsWith('y ')) {
+      const [key, text] = searchInputValue.split(' ');
+      const capitalKey = key.toLocaleLowerCase();
+
+      if (capitalKey === 'y') {
+        if (text) {
+          await searchFanyi(text);
+        } else {
+          searchResultList.value = [
+            {
+              id: 1,
+              text: '',
+              desc: '自动检测翻译'
+            }
+          ]
+        }
+      }
+    } else {
+      computedFormula(searchInputValue);
+    }
+  }
 }, 400);
 
 const watchListHeight = () => {
@@ -213,6 +282,7 @@ getCurrent().listen('tauri://focus', () => {
 
   &-text {
     font-size: 24px;
+    height: 24px;
     letter-spacing: 2px;
     color: #333;
     line-height: 1;
