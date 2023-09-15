@@ -1,0 +1,121 @@
+{
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build:web",
+    "devPath": "http://localhost:9998",
+    "distDir": "../dist",
+    "withGlobalTauri": false
+  },
+  "package": {
+    "productName": "Embrace Everything",
+    "version": "../package.json"
+  },
+  "tauri": {
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": true,
+      "title": "Embrace Everything"
+    },
+    "allowlist": {
+      "clipboard": {
+        "all": true,
+        "writeText": true,
+        "readText": true
+      },
+      "globalShortcut": {
+        "all": true
+      },
+      "all": true,
+      "shell": {
+        "all": true,
+        "execute": true,
+        "sidecar": true,
+        "open": true
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": [
+          "**"
+        ]
+      },
+      "path": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "createDir": true,
+        "exists": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "http": {
+        "all": true,
+        "scope": [
+          "http://**",
+          "https://**"
+        ]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "heiyehk",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.heiyehk.ebet.app",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "程序插件",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
+        "wix": {
+          "language": "zh-CN"
+        }
+      }
+    },
+    "security": {
+      "csp": "default-src 'self' https: data:;connect-src 'self'; style-src 'self' 'unsafe-inline' https://tauri.localhost; script-src 'self' https://tauri.localhost; img-src * 'self' asset: data:;media-src 'self' asset: data: blob:;"
+    },
+    "updater": {
+      "active": false
+    },
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "EmbraceEverything",
+        "fullscreen": false,
+        "height": 70,
+        "resizable": false,
+        "title": "Embrace Everything",
+        "width": 550,
+        "decorations": false,
+        "center": true,
+        "visible": false
+      }
+    ]
+  }
+}
