@@ -97,9 +97,6 @@
         }
       }
     },
-    "security": {
-      "csp": "default-src 'self' https: data:;connect-src 'self'; style-src 'self' 'unsafe-inline' https://tauri.localhost; script-src 'self' https://tauri.localhost; img-src * 'self' asset: data:;media-src 'self' asset: data: blob:;"
-    },
     "updater": {
       "active": false
     },
@@ -108,10 +105,10 @@
       {
         "label": "EmbraceEverything",
         "fullscreen": false,
-        "height": 70,
+        "height": 0,
         "resizable": false,
         "title": "Embrace Everything",
-        "width": 550,
+        "width": 0,
         "decorations": false,
         "center": true,
         "visible": false
