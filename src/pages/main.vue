@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import '@/shortcut';
 
-import { listen } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/window';
 import { nextTick } from 'vue';
 import { join, resolveResource } from '@tauri-apps/api/path';
@@ -20,22 +20,22 @@ const EBET_SEARCH = new WebviewWindow('EBET_SEARCH', {
   height: 70,
   resizable: false,
   title: 'Embrace Everything Search',
-  width: 200,
+  width: 550,
   decorations: false,
   alwaysOnTop: true,
   hiddenTitle: true,
   transparent: true,
   focus: true,
-  x: 900,
-  // x: screenWidth / 2 - 275,
-  y: 700,
+  // x: 900,
+  x: screenWidth / 2 - 275,
+  y: 200,
   visible: false
 });
 
-listen('Alt_Space', () => {
+listen('ebet://Alt_Space', () => {
   EBET_SEARCH.show();
+  EBET_SEARCH.setFocus();
 });
-
 
 const getImportPlugins = async () => {
   /** app address */
@@ -90,12 +90,17 @@ const getImportPlugins = async () => {
     }
 
     localStorage.setItem('EBET_PLUGINS', JSON.stringify(cachePlugins));
+    emit('ebet://restartCallback')
   }
 }
 
 nextTick(() => {
   getImportPlugins();
-})
+});
+
+listen('ebet://restart', () => {
+  getImportPlugins();
+});
 </script>
 
 <style lang="less" scoped></style>

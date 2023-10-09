@@ -4,5 +4,5 @@ import { getCurrent } from '@tauri-apps/api/window';
 const currentWindow = getCurrent();
 
 currentWindow.once('tauri://close-requested', () => {
-  emit('close-requested');
+  emit('ebet://close-requested');
 });

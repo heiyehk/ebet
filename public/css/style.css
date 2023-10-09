@@ -1,6 +1,5 @@
 html {
   font-family: 'PingFang SC', 'PingFang-SC-Medium', 'Source Han Sans CN', 'Microsoft YaHei';
-  background: #fff;
 }
 
 html,
@@ -331,8 +330,13 @@ img:not([src]) {
 html,
 body,
 #app {
-  width: 100%;
-  height: 100%;
-  border: 10px;
+  width: calc(100% - 1px);
+  height: calc(100% - 1px);
+  border-radius: 4px;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+#app {
+  border: 1px solid #c3c3c3;
 }

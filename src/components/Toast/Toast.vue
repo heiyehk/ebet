@@ -92,7 +92,7 @@ export default defineComponent({
 }
 
 .x-toast-top {
-  top: 100px;
+  top: 20px;
   transform: translateX(-50%);
 }
 
@@ -102,7 +102,7 @@ export default defineComponent({
 }
 
 .x-toast-bottom {
-  bottom: 100px;
+  bottom: 20px;
   transform: translateX(-50%);
 }
 

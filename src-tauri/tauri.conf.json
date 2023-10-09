@@ -105,10 +105,10 @@
       {
         "label": "EmbraceEverything",
         "fullscreen": false,
-        "height": 0,
+        "height": 100,
         "resizable": false,
         "title": "Embrace Everything",
-        "width": 0,
+        "width": 100,
         "decorations": false,
         "center": true,
         "visible": false

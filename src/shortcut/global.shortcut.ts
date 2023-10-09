@@ -6,8 +6,7 @@ const initGlobalShortcut = async () => {
 
   if (!isRegister) {
     await register('Alt+Space', () => {
-      console.log('Alt+Space');
-      emit('Alt_Space');
+      emit('ebet://Alt_Space');
     });
   }
 }

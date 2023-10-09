@@ -16,7 +16,12 @@
         <template v-for="(item, index) in searchResultList" :key="item.id">
           <li class="ebet-result-li" :class="currentActive === index ? 'ebet-li-active' : ''" @click="selectItem(item, index)">
             <div class="ebet-result-info" :class="!item.desc ? 'ebet-result-nodesc' : ''">
-              <div class="ebet-result-text">{{ item.text }}</div>
+              <template v-if="!item.text && item.placeholder">
+                <div class="ebet-result-text ebet-result-placeholder">{{ item.placeholder }}</div>
+              </template>
+              <template v-else>
+                <div class="ebet-result-text" :style="item.text && String(item.text).length >= 36 ? 'font-size: 16px' : ''">{{ item.text }}</div>
+              </template>
               <div class="ebet-result-desc">{{ item.desc }}</div>
             </div>
           </li>
@@ -36,18 +41,34 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import Toast from '@/components/Toast';
 import Loading from '@/components/Loading/Loading.vue'
+import { emit, listen } from '@tauri-apps/api/event';
 
 export interface SearchResultItem {
-  id: number;
-  text: string;
+  id: number | string;
+  text?: string;
+  placeholder?: string;
   desc?: string;
   link?: string;
+  enter?: () => void;
 }
 
 export interface SearchResultData {
   text: string;
   desc?: string;
   type?: string;
+}
+
+type SearchPluginPermissionsKey = 'fetch' | 'shell' | 'writeText' | 'loading' | 'result' | 'toast';
+type SearchPluginPermissionsFunctions = Record<SearchPluginPermissionsKey, SearchPluginType>;
+
+export interface SearchPluginType {
+  name: string;
+  description: string;
+  key: string;
+  permissions?: string[];
+  version: string;
+  main: string;
+  module?: (searchValue: string, fn: SearchPluginPermissionsFunctions) => Promise<void>;
 }
 
 const searchInputRef = ref<HTMLInputElement | null>(null);
@@ -57,10 +78,17 @@ const searchValue = ref('');
 const searchResultList = ref<SearchResultItem[]>([]);
 const currentActive = ref(0);
 const searchLoading = ref(false);
-const ebetPlugins = localStorage.getItem('EBET_PLUGINS');
-let ebetPluginsLabel: Record<string, any> = {};
+const searchCache = ref([]);
+let ebetPluginsLabel: Record<string, SearchPluginType> = {};
+
+const permissionsMap: Record<string, any> = {
+  fetch: fetch,
+  shell: shell,
+  writeText: writeText,
+};
 
 const initPlugins = async () => {
+  const ebetPlugins = localStorage.getItem('EBET_PLUGINS')
   if (ebetPlugins) {
     try {
       const ebetPluginsList = JSON.parse(ebetPlugins);
@@ -72,11 +100,11 @@ const initPlugins = async () => {
           ...plugin
         };
       }
-    } catch (error) {
-      
+    } catch (error: any) {
+      Toast('initPlugins:' + error.message, 'warning', 3000);
     }
   }
-}
+};
 initPlugins();
 
 const currentListHeight = ref(70);
@@ -118,51 +146,105 @@ const otherInput = (text: string) => {
       }
     ];
   }
-}
+};
 
 // 输入框输入事件防抖
 const onSearchInput = debounce(async () => {
   const searchInputValue = searchValue.value;
+
   if (!searchInputValue) {
     searchResultList.value = [];
     return;
   }
 
-  if (searchInputValue) {
-    const [key, ...text] = searchInputValue.split(' ');
-    const capitalKey = key.toLocaleLowerCase();
-    if (searchInputValue.includes(' ') && capitalKey in ebetPluginsLabel) {
-      const pluginModule = ebetPluginsLabel[capitalKey].module;
-      pluginModule(text.join(' '), {
-        searchResultList,
-        searchLoading,
-        fetch
-      }).catch((err: Error) => {
-        searchLoading.value = false;
-        Toast(err.message);
-      });
-    } else {
-      otherInput(searchInputValue);
-    }
+  if ('restart plugin'.includes(searchInputValue.toLocaleLowerCase())) {
+    searchResultList.value = [{
+      id: 'restart plugin',
+      text: 'Restart plugin',
+      desc: '重启插件',
+      enter: () => {
+        emit('ebet://restart');
+      }
+    }];
+
+    return;
+  }
+
+  // 获取输入框的值
+  const matchFirstSpaceIndex = searchInputValue.indexOf(' ');
+  const pluginKey = searchInputValue.slice(0, matchFirstSpaceIndex);
+  const capitalKey = pluginKey.toLocaleLowerCase();
+
+  // 匹配插件
+  if (capitalKey in ebetPluginsLabel) {
+    matchPluginInject(capitalKey, matchFirstSpaceIndex);
+  } else {
+    otherInput(searchInputValue);
   }
 }, 400);
 
+listen('ebet://restartCallback', () => {
+  initPlugins();
+});
+
+const matchPluginInject = (capitalKey: string, matchFirstSpaceIndex: number) => {
+  // 如果有插件，就执行插件
+  const pluginInfo = ebetPluginsLabel[capitalKey];
+  const pluginModule = pluginInfo.module;
+  const pluginValue = searchValue.value.slice(matchFirstSpaceIndex + 1);
+
+  if (!pluginValue) {
+    searchResultList.value = [
+      {
+        id: 1,
+        placeholder: pluginInfo.name,
+        desc: `${pluginInfo.description} ${pluginInfo.version}`
+      }
+    ];
+    searchLoading.value = false;
+    return;
+  }
+
+  const permissions = pluginInfo.permissions || [];
+  let pluginModulePermissions: Record<string, any> = {};
+
+  if (permissions && permissions.length) {
+    for (const permission of permissions) {
+      if (permission in permissionsMap) {
+        pluginModulePermissions[permission] = permissionsMap[permission];
+      }
+    }
+  }
+
+  pluginModulePermissions['loading'] = searchLoading;
+  pluginModulePermissions['result'] = searchResultList;
+  pluginModulePermissions['toast'] = Toast;
+  pluginModulePermissions['cache'] = searchCache;
+
+  if (pluginModule) {
+    pluginModule(pluginValue, pluginModulePermissions as SearchPluginPermissionsFunctions).catch((err: Error) => {
+      searchLoading.value = false;
+      Toast('matchPluginInject:' + err.message, 'warning', 3000);
+    });
+  }
+}
+
 const watchListHeight = () => {
   if (searchResultList.value && currentListHeight.value < computedListHeight.value) {
-    currentListHeight.value += 7;
+    currentListHeight.value += 35;
     requestAnimationFrame(watchListHeight);
   } else if (searchResultList.value && currentListHeight.value > computedListHeight.value) {
-    currentListHeight.value -= 7;
+    currentListHeight.value -= 35;
     requestAnimationFrame(watchListHeight);
   }
 
-  console.log(1);
   getCurrent().setSize(new LogicalSize(550, currentListHeight.value));
 };
 
 watch(
   () => searchResultList.value,
   () => {
+    console.log(searchResultList.value)
     watchListHeight();
   }
 );
@@ -170,6 +252,9 @@ watch(
 const addKeydownListener = async () => {
   document.addEventListener('keydown', async (e) => {
     if (e.key === 'ArrowUp') {
+      // 设置最后光标位置
+      searchInputRef.value?.focus();
+      searchInputRef.value?.setSelectionRange(searchValue.value.length, searchValue.value.length);
       if (currentActive.value === 0) return;
       currentActive.value--;
     } else if (e.key === 'ArrowDown') {
@@ -193,20 +278,34 @@ const selectItem = async (item: any, index?: number) => {
 
   if (item.link) {
     shell.open(item.link);
-  } else if (item.text) {
+    return;
+  }
+
+  if (item.enter) {
+    item.enter();
+    restState(true);
+    return;
+  }
+
+  if (item.text) {
     await writeText(item.text);
     restState();
-  } else {
-    Toast('无法复制');
+    return;
   }
+
+  Toast('操作失败');
 }
 
-const restState = () => {
+const restState = (clear = false) => {
   searchLoading.value = false;
-  // currentListHeight.value = 70;
-  // currentActive.value = 0;
-  // searchValue.value = '';
-  // searchResultList.value = [];
+
+  if (clear) {
+    currentListHeight.value = 70;
+    currentActive.value = 0;
+    searchValue.value = '';
+    searchResultList.value = [];
+  }
+
   getCurrent().hide();
 };
 
@@ -221,12 +320,12 @@ getCurrent().listen('tauri://close-requested', () => {
   restState();
 });
 
-getCurrent().listen('Alt_Space', () => {
+getCurrent().listen('ebet://Alt_Space', () => {
   restState();
   getCurrent().show();
 });
 
-getCurrent().listen('close-requested', () => {
+getCurrent().listen('ebet://close-requested', () => {
   restState();
 });
 
@@ -239,8 +338,9 @@ getCurrent().listen('tauri://focus', () => {
 .ebet-container {
   width: 100%;
   height: 100%;
-  border-radius: 10px;
   background-color: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
 
   .ebet-search {
     width: 100%;
@@ -254,7 +354,7 @@ getCurrent().listen('tauri://focus', () => {
       border: none;
       outline: none;
       padding: 0 10px;
-      font-size: 28px;
+      font-size: 24px;
       letter-spacing: 2px;
       box-sizing: border-box;
       overflow: hidden;
@@ -276,7 +376,9 @@ getCurrent().listen('tauri://focus', () => {
 }
 
 .ebet-result {
-  overflow-y: auto;
+  overflow: hidden;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 
   &-ui {
     width: 100%;
@@ -311,6 +413,10 @@ getCurrent().listen('tauri://focus', () => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &-placeholder {
+    color: #999;
   }
 
   &-desc {
