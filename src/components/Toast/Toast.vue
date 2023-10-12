@@ -44,7 +44,7 @@ export default defineComponent({
       }
       return classes.join(' ');
     });
-    let timer: number | null;
+    let timer: number | NodeJS.Timeout | null;
 
     const close = () => {
       if (timer) {

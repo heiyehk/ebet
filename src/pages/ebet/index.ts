@@ -4,6 +4,7 @@ import Toast from '@/components/Toast';
 import { writeText } from '@tauri-apps/api/clipboard';
 import { debounce } from '@hyjs/utils';
 import { emit } from '@tauri-apps/api/event';
+import { SearchResultItem } from './variable';
 
 const mathExpressionRegex = /^\-?\d+(\.\d+)?([\-+\*\/%()\s]+\s*\d+(\.\d+)?)*$/;
 
@@ -62,11 +63,19 @@ export default class EbetSearch extends EbetPlugins {
     }
 
     if ('history'.includes(searchInputValue.toLocaleLowerCase())) {
-      this.searchResultList.value = [{
-        id: 'history1',
-        text: 'test',
-        desc: '历史记录'
-      }];
+      const historyList = this.historyList;
+
+      if (!historyList.length) {
+        this.searchResultList.value = [{
+          id: 'history',
+          text: 'No history',
+          desc: '没有历史记录',
+          enter: () => { }
+        }];
+        return true;
+      }
+
+      this.searchResultList.value = this.historyList;
 
       return true;
     }
@@ -112,14 +121,14 @@ export default class EbetSearch extends EbetPlugins {
         this.currentActive.value--;
 
         if (e.target) {
-          // jumpView(e.target);
+          this.jumpView(e.target, 'ArrowUp');
         }
       } else if (e.key === 'ArrowDown') {
         if (this.currentActive.value === this.searchResultList.value.length - 1) return;
         this.currentActive.value++;
 
         if (e.target) {
-          // jumpView(e.target);
+          this.jumpView(e.target, 'ArrowDown');
         }
       } else if (e.key === 'Enter') {
         const currentActiveItem = this.searchResultList.value[this.currentActive.value];
@@ -136,20 +145,28 @@ export default class EbetSearch extends EbetPlugins {
   };
 
   // 给ebetResultRef.value设置滚动条
-  static jumpView(target: EventTarget) {
-    // const targetElement = target as HTMLElement;
-    // const targetElementOffsetTop = targetElement.offsetTop;
-    // const targetElementOffsetHeight = targetElement.offsetHeight;
-    // const targetElementScrollTop = ebetResultRef.value.scrollTop;
-    // console.log(ebetResultRef.value.children);
-    // const targetElementScrollHeight = ebetResultRef.value.scrollHeight;
+  static jumpView(target: EventTarget, direction: 'ArrowUp' | 'ArrowDown') {
+    const ebetResultRef = document.querySelector('.ebet-result') as HTMLDivElement;
+    const ebetResultScrollTop = ebetResultRef.scrollTop;
+    const currentActiveHeight = this.currentActive.value * this.lineHeight;
 
-    // if (targetElementOffsetTop + targetElementOffsetHeight > targetElementScrollTop + targetElementScrollHeight) {
-    //   // document.querySelector('.scroll-content').style.transform = `translate3d(0px, ${targetElementOffsetTop + targetElementOffsetHeight - targetElementScrollHeight}px, 0px)`;
-    // } else if (targetElementOffsetTop < targetElementScrollTop) {
-    //   // ebetResultRef.value.scrollTop = targetElementOffsetTop;
-    //   // document.querySelector('.scroll-content').style.transform = `translate3d(0px, ${targetElementOffsetTop}px, 0px)`;
-    // }
+    if (direction === 'ArrowUp') {
+      if (currentActiveHeight < ebetResultScrollTop) {
+        ebetResultRef.scrollTo({
+          top: currentActiveHeight,
+          behavior: 'smooth'
+        });
+      }
+    }
+
+    if (direction === 'ArrowDown') {
+      if (currentActiveHeight > ebetResultScrollTop + this.lineHeight * 4) {
+        ebetResultRef.scrollTo({
+          top: currentActiveHeight - this.lineHeight * 4,
+          behavior: 'smooth'
+        });
+      }
+    }
   };
 
   /**
@@ -158,7 +175,7 @@ export default class EbetSearch extends EbetPlugins {
    * @param index 
    * @returns 
    */
-  static async selectItem(item: any, index?: number) {
+  static async selectItem(item: SearchResultItem, index?: number) {
     if (!item) return;
 
     if (index !== undefined) {
@@ -167,21 +184,57 @@ export default class EbetSearch extends EbetPlugins {
 
     if (item.link) {
       shell.open(item.link);
+      this.setHistory(item);
       return;
     }
 
     if (item.enter) {
+      this.setHistory(item);
       item.enter();
       this.restState(true);
       return;
     }
 
     if (item.text) {
+      this.setHistory(item);
       await writeText(item.text);
       this.restState();
       return;
     }
-
-    Toast('操作失败');
   };
+
+  static get historyList() {
+    const localHistory = localStorage.getItem('EBET_HISTORY');
+
+    try {
+      let historyList = [];
+
+      if (localHistory) {
+        const localHistoryJson = JSON.parse(localHistory);
+        historyList = localHistoryJson;
+      }
+
+      return historyList;
+    } catch (error: any) {
+      Toast('getHistory:' + error.message, 'warning', 3000);
+    }
+  };
+
+  static setHistory(item: SearchResultItem) {
+    const localHistory = localStorage.getItem('EBET_HISTORY');
+
+    try {
+      let historyList = [];
+
+      if (localHistory) {
+        const localHistoryJson = JSON.parse(localHistory);
+        historyList = localHistoryJson;
+      }
+      historyList.push(item);
+
+      localStorage.setItem('EBET_HISTORY', JSON.stringify(historyList));
+    } catch (error: any) {
+      Toast('setHistory:' + error.message, 'warning', 3000);
+    }
+  }
 };

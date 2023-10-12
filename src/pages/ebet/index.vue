@@ -43,15 +43,18 @@ import { onMounted, ref, watch } from 'vue';
 
 import Loading from '@/components/Loading/Loading.vue'
 import { listen } from '@tauri-apps/api/event';
-import Scrollbar from 'smooth-scrollbar';
 import EbetSearch from './index';
 
-const { currentActive, searchValue, searchLoading, searchResultList, currentListHeight } = EbetSearch;
+const {
+  currentActive,
+  searchValue,
+  searchLoading,
+  searchResultList,
+  currentListHeight,
+  styleLineHeight
+} = EbetSearch;
 const searchInputRef = ref<HTMLInputElement | null>(null);
 const ebetResultRef = ref();
-
-const lineHeight = 70;
-const styleLineHeight = `${lineHeight}px`;
 
 EbetSearch.initPlugins();
 
@@ -68,7 +71,7 @@ const watchListHeight = () => {
     requestAnimationFrame(watchListHeight);
   }
 
-  getCurrent().setSize(new LogicalSize(550, currentListHeight.value));
+  getCurrent().setSize(new LogicalSize(550, currentListHeight.value + 5));
 };
 
 watch(
@@ -81,17 +84,6 @@ watch(
 onMounted(() => {
   if (searchInputRef.value) {
     EbetSearch.addKeydownListener(searchInputRef.value);
-  }
-
-  if (ebetResultRef.value) {
-    Scrollbar.init(ebetResultRef.value as HTMLElement, {
-    damping: 0.1,
-    thumbMinSize: 20,
-    renderByPixels: true,
-    alwaysShowTracks: false,
-    continuousScrolling: true,
-    delegateTo: ebetResultRef.value as HTMLElement,
-  });
   }
 });
 
@@ -122,6 +114,7 @@ getCurrent().listen('tauri://focus', () => {
 </script>
 
 <style lang="less" scoped>
+@import url('../../less/color.less');
 .ebet-container {
   width: 100%;
   height: 100%;
@@ -165,8 +158,8 @@ getCurrent().listen('tauri://focus', () => {
 .ebet-result {
   height: calc(100% - v-bind(styleLineHeight));
   overflow: auto;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: @border-radius-base;
+  border-bottom-right-radius: @border-radius-base;
 
   &-ui {
     width: 100%;

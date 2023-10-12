@@ -13,7 +13,7 @@ const permissionsMap: Record<SearchPluginPermissionsKey, any> = {
 };
 
 /**
- * 插件权限属性和函数
+ * 处理插件权限属性和函数
  */
 export default class EbetPlugins extends EbetVariable {
   // 默认的插件权限属性和函数
@@ -36,6 +36,7 @@ export default class EbetPlugins extends EbetVariable {
         const ebetPluginsList = JSON.parse(ebetPlugins);
 
         for (const plugin of ebetPluginsList) {
+          /* @vite-ignore */
           const pluginModule = (await import(`https://asset.localhost/${plugin.mainScriptPath}`)).default;
           this.ebetPluginsLabel[plugin.key] = {
             module: pluginModule,
